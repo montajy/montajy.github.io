@@ -148,7 +148,7 @@
     <h1><span data-en="Edit videos like a pro.">مونتاج احترافي</span><br><span class="grad" data-en="Free, and on your PC.">مجاني، وعلى جهازك.</span></h1>
     <p class="lead" data-en="Montajy is a video editor for Windows: automatic Arabic captions, background removal, thousands of motion graphics, songs and sound effects, and export up to 4K. Your videos never leave your computer.">مونتاجي برنامج مونتاج فيديو لويندوز: ترجمة تلقائية بالعربي وبكل اللهجات، إزالة الخلفية، آلاف الموشن جرافيك والأغاني والمؤثرات، وتصدير لحد 4K. فيديوهاتك ما تطلع من جهازك أبداً.</p>
     <div class="dl-box">
-      <a class="btn main dl-link" id="heroDl" href="#download">
+      <a class="btn main dl-link" id="heroDl" href="https://github.com/montajy/montajy.github.io/releases/download/v1.0.1/Montajy-Setup-1.0.1.exe">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
         <span data-en="Download for Windows">حمّل لويندوز</span>
       </a>
@@ -199,7 +199,7 @@
         <div>
           <h2 data-en="Download Montajy">حمّل مونتاجي</h2>
           <p class="muted" style="margin: 0 0 22px" data-en="Free. One file, then it updates itself.">مجاني. ملف واحد، وبعدها يتحدّث لحاله.</p>
-          <a class="btn main dl-link" id="mainDl" href="#">
+          <a class="btn main dl-link" id="mainDl" href="https://github.com/montajy/montajy.github.io/releases/download/v1.0.1/Montajy-Setup-1.0.1.exe">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
             <span id="mainDlText" data-en="Download for Windows">حمّل لويندوز</span>
           </a>
@@ -286,43 +286,56 @@
   // Preload so switching tabs is instant.
   shots.forEach((s) => { const i = new Image(); i.src = `shot-${s[0]}.webp`; });
 
-  // Latest release, read live from GitHub: a new release shows up here by itself.
+  // Latest release. latest.json (beside this page, written by tools/release.ps1)
+  // gives the direct file link; the GitHub API only adds extras (download
+  // count, older versions). The API allows 60 requests an hour per address,
+  // and many people in Iraq share one address, so it often refuses: the
+  // button must never depend on it (it used to fall back to GitHub's page).
+  // The links in the HTML are already direct, for when scripts fail too.
   let rel = null, list = [], loaded = false;
   const mb = (b) => `${Math.round(b / 1048576)} MB`;
   const day = (d) => new Date(d).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });
   const exeOf = (r) => (r.assets || []).find((a) => /\.exe$/i.test(a.name));
+  // A GitHub API release as the latest.json shape.
+  const fromApi = (r) => { const e = exeOf(r); return e && { version: r.tag_name.replace(/^v/i, ''), name: r.name, url: e.browser_download_url, size: e.size, date: r.published_at, notes: r.body }; };
   const drawRelease = () => {
-    const links = document.querySelectorAll('.dl-link');
     const meta = document.getElementById('heroMeta');
-    const exe = rel && exeOf(rel);
-    if (!exe) {
-      links.forEach((a) => { if (a.id !== 'heroDl' && !a.classList.contains('small')) a.href = RELEASES + '/latest'; });
-      document.getElementById('mainDl').href = RELEASES + '/latest';
-      document.getElementById('relNotes').textContent = rel === false
-        ? L('ما گدرنا نجيب معلومات آخر نسخة هسه. زر التحميل يوديك لصفحة النسخ مباشرة.', 'Couldn\'t load the latest version info right now. The download button takes you to the releases page.')
-        : L('أول نسخة راح تنزل هنا قريباً.', 'The first version will be here soon.');
+    if (!rel) {
+      // Nothing known: the links keep the direct file from the HTML.
+      document.getElementById('relNotes').textContent = L('تحسينات وتصليحات.', 'Improvements and fixes.');
       return;
     }
-    const v = rel.tag_name.replace(/^v/i, '');
-    document.getElementById('mainDl').href = exe.browser_download_url;
-    document.getElementById('heroDl').href = exe.browser_download_url;
+    const v = rel.version;
+    document.getElementById('mainDl').href = rel.url;
+    document.getElementById('heroDl').href = rel.url;
     document.getElementById('mainDlText').textContent = L(`حمّل مونتاجي ${v}`, `Download Montajy ${v}`);
-    meta.innerHTML = `<span>${L('النسخة', 'Version')} ${v}</span><span>${mb(exe.size)}</span><span>${L('ويندوز 10 / 11', 'Windows 10 / 11')}</span>`;
+    meta.innerHTML = `<span>${L('النسخة', 'Version')} ${v}</span><span>${mb(rel.size)}</span><span>${L('ويندوز 10 / 11', 'Windows 10 / 11')}</span>`;
     document.getElementById('relName').textContent = rel.name || `Montajy ${v}`;
     const tag = document.getElementById('relTag'); tag.hidden = false; tag.textContent = L('آخر نسخة', 'Latest');
     const downloads = list.reduce((n, r) => n + (exeOf(r) ? exeOf(r).download_count : 0), 0);
-    document.getElementById('relDate').textContent = `${day(rel.published_at)} · ${mb(exe.size)}${downloads ? ' · ' + L(`${downloads.toLocaleString('ar-IQ')} تحميل`, `${downloads.toLocaleString('en')} downloads`) : ''}`;
-    document.getElementById('relNotes').textContent = (rel.body || '').replace(/\r/g, '').trim() || L('تحسينات وتصليحات.', 'Improvements and fixes.');
-    const older = list.filter((r) => r !== rel && exeOf(r)).slice(0, 4);
+    document.getElementById('relDate').textContent = `${day(rel.date)} · ${mb(rel.size)}${downloads ? ' · ' + L(`${downloads.toLocaleString('ar-IQ')} تحميل`, `${downloads.toLocaleString('en')} downloads`) : ''}`;
+    document.getElementById('relNotes').textContent = (rel.notes || '').replace(/\r/g, '').trim() || L('تحسينات وتصليحات.', 'Improvements and fixes.');
+    // Older versions download directly too.
+    const older = list.filter((r) => exeOf(r) && r.tag_name.replace(/^v/i, '') !== v).slice(0, 4);
     const box = document.getElementById('older');
     box.hidden = !older.length;
-    box.innerHTML = `<div style="color: var(--text)">${L('نسخ سابقة', 'Earlier versions')}</div>` + older.map((r) => `<div><a href="${r.html_url}">${r.tag_name}</a><span>${day(r.published_at)}</span></div>`).join('');
+    box.innerHTML = `<div style="color: var(--text)">${L('نسخ سابقة', 'Earlier versions')}</div>` + older.map((r) => `<div><a href="${exeOf(r).browser_download_url}">${r.tag_name}</a><span>${day(r.published_at)}</span></div>`).join('');
   };
-  fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=8`, { headers: { Accept: 'application/vnd.github+json' } })
+  const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+  fetch('latest.json', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
+    .then((j) => { if (j && j.url) rel = j; loaded = true; drawRelease(); })
+    .then(() => fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=8`, { headers: { Accept: 'application/vnd.github+json' } }))
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((rs) => { list = rs.filter((r) => !r.draft && !r.prerelease); rel = list[0] || null; loaded = true; drawRelease(); })
-    // 404: nothing published yet; anything else: GitHub unreachable or busy.
-    .catch((st) => { rel = st === 404 ? null : false; loaded = true; drawRelease(); });
+    .then((rs) => {
+      list = rs.filter((r) => !r.draft && !r.prerelease);
+      // A release published without updating latest.json still wins.
+      const top = list.length && fromApi(list[0]);
+      if (top && (!rel || newer(top.version, rel.version))) rel = top;
+      drawRelease();
+    })
+    .catch(() => { /* API busy or down: latest.json / the HTML links are enough */ });
 
   // Arabic text is in the page; English sits in data-en.
   const applyLang = () => {
